@@ -1,0 +1,61 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows executable
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run tauri build -- --bundles nsis
+      - shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          Copy-Item src-tauri/target/release/lsob.exe release/lsob.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lsob-windows
+          path: release/lsob.exe
+
+  macos:
+    name: macOS installers
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run tauri build -- --bundles dmg
+      - name: Package installers
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          dmg_path=$(find src-tauri/target/release/bundle/dmg -type f -name '*.dmg' -print -quit)
+          app_path=$(find src-tauri/target/release/bundle/macos -type d -name '*.app' -print -quit)
+          test -n "$dmg_path"
+          test -n "$app_path"
+          cp "$dmg_path" release/lsob.dmg
+          pkgbuild --component "$app_path" --install-location /Applications release/lsob.pkg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lsob-macos
+          path: |
+            release/lsob.dmg
+            release/lsob.pkg
