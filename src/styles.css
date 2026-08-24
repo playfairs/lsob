@@ -376,6 +376,11 @@ h1 {
   background: #292f20;
   color: #d9f36a;
 }
+.effect-buttons .finish-button {
+  border-color: #d9f36a;
+  background: #292f20;
+  color: #d9f36a;
+}
 .stack-empty {
   padding: 28px 8px;
   color: #666b60;

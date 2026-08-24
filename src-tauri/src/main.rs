@@ -48,6 +48,7 @@ fn apply_effects(mut image: RgbaImage, effects: &[EffectSpec]) -> RgbaImage {
             "radial" => Effect::RadialBlur { amount: effect.value.max(0.0) as u32 },
             "melt" => Effect::Melt { amount: effect.value.max(0.0) as u32 },
             "glitch" => Effect::Glitch { amount: effect.value.max(0.0) as u32 },
+            "finish" => Effect::Finish { amount: effect.value.max(0.0) as u32 },
             _ => continue,
         };
         image = operation.apply(&image);

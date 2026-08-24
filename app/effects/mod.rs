@@ -14,6 +14,7 @@ pub enum Effect {
     RadialBlur { amount: u32 },
     Melt { amount: u32 },
     Glitch { amount: u32 },
+    Finish { amount: u32 },
 }
 
 impl Effect {
@@ -31,6 +32,7 @@ impl Effect {
             Self::RadialBlur { .. } => "Radial Blur",
             Self::Melt { .. } => "Melt",
             Self::Glitch { .. } => "Glitch",
+            Self::Finish { .. } => "Finish",
         }
     }
 
@@ -49,6 +51,7 @@ impl Effect {
             Self::RadialBlur { amount } => radial_blur(input, *amount),
             Self::Melt { amount } => melt(input, *amount),
             Self::Glitch { amount } => glitch(input, *amount),
+            Self::Finish { amount } => finish(input, *amount),
         }
     }
 }
@@ -153,6 +156,38 @@ fn glitch(input: &RgbaImage, amount: u32) -> RgbaImage {
                 let source_x = (x as i32 + shift).rem_euclid(width.max(1) as i32) as u32;
                 output.put_pixel(x, y, *input.get_pixel(source_x, y));
             }
+        }
+    }
+    output
+}
+
+fn finish(input: &RgbaImage, amount: u32) -> RgbaImage {
+    if amount == 0 {
+        return input.clone();
+    }
+    let intensity = amount.min(100);
+    let smallest_side = input.width().min(input.height()).max(1);
+    let detail = (100 - intensity) * smallest_side / 100;
+    let proxy_side = detail.clamp(10, smallest_side);
+    let proxy = image::imageops::thumbnail(input, proxy_side, proxy_side);
+    let softened = image::imageops::blur(&proxy, 0.7 + intensity as f32 / 45.0);
+    let mut output = image::imageops::resize(
+        &softened,
+        input.width(),
+        input.height(),
+        image::imageops::FilterType::Nearest,
+    );
+    let halo = image::imageops::blur(&output, 0.4 + intensity as f32 / 35.0);
+    for (pixel, glow) in output.pixels_mut().zip(halo.pixels()) {
+        let base_alpha = u16::from(pixel.0[3]);
+        let glow_alpha = u16::from(glow.0[3]);
+        let fringe = glow_alpha.saturating_sub(base_alpha) * 3 / 4;
+        if fringe > 0 {
+            let blend = fringe.min(180);
+            pixel.0[0] = ((u16::from(pixel.0[0]) * (255 - blend) + 248 * blend) / 255) as u8;
+            pixel.0[1] = ((u16::from(pixel.0[1]) * (255 - blend) + 248 * blend) / 255) as u8;
+            pixel.0[2] = ((u16::from(pixel.0[2]) * (255 - blend) + 248 * blend) / 255) as u8;
+            pixel.0[3] = pixel.0[3].max(fringe as u8);
         }
     }
     output

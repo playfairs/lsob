@@ -13,7 +13,8 @@ type EffectKind =
   | "rgb"
   | "radial"
   | "melt"
-  | "glitch";
+  | "glitch"
+  | "finish";
 type Effect = { id: number; kind: EffectKind; value: number; enabled: boolean };
 
 const state = {
@@ -44,6 +45,7 @@ function effectLabel(kind: EffectKind) {
     radial: "Radial Blur",
     melt: "Melt",
     glitch: "Glitch",
+    finish: "Finish",
   }[kind];
 }
 
@@ -60,6 +62,7 @@ function effectDefault(kind: EffectKind) {
     radial: 28,
     melt: 20,
     glitch: 25,
+    finish: 86,
   }[kind];
 }
 
@@ -88,7 +91,7 @@ function render() {
         <aside class="inspector">
           <div class="inspector-head"><div><span class="eyebrow">PROCESS</span><h1>Effect stack</h1></div><div class="stack-tools"><button data-collapse-all aria-label="Collapse all effects">−</button><button data-expand-all aria-label="Expand all effects">+</button><span class="count">${state.effects.length}</span></div></div>
           <div id="effects" class="effects">${state.effects.length ? state.effects.map((effect, index) => effectRow(effect, index)).join("") : `<div class="stack-empty">Add an effect to start destroying clarity.</div>`}</div>
-          <div class="add-effect"><span class="eyebrow">ADD EFFECT</span><div class="effect-buttons"><button data-add="blur">Blur</button><button data-add="radial">Radial</button><button data-add="pixelate">Pixelate</button><button data-add="sharpen">Sharpen</button><button data-add="melt">Melt</button><button data-add="glitch">Glitch</button><button data-add="rgb">RGB</button><button data-add="noise">Noise</button><button data-add="brightness">Light</button><button data-add="contrast">Contrast</button><button data-add="hue">Hue</button></div></div>
+          <div class="add-effect"><span class="eyebrow">ADD EFFECT</span><div class="effect-buttons"><button class="finish-button" data-add="finish">Finish</button><button data-add="blur">Blur</button><button data-add="radial">Radial</button><button data-add="pixelate">Pixelate</button><button data-add="sharpen">Sharpen</button><button data-add="melt">Melt</button><button data-add="glitch">Glitch</button><button data-add="rgb">RGB</button><button data-add="noise">Noise</button><button data-add="brightness">Light</button><button data-add="contrast">Contrast</button><button data-add="hue">Hue</button></div></div>
           <div class="status">${state.bytes.length ? "Preview updates as you work" : "Waiting for an image"}</div>
         </aside>
       </section>
@@ -109,6 +112,7 @@ function effectRow(effect: Effect, index: number) {
     radial: [0, 100],
     melt: [0, 80],
     glitch: [0, 80],
+    finish: [0, 100],
   }[effect.kind];
   const isCollapsed = state.collapsed.has(effect.id);
   return `<article class="effect-row ${effect.enabled ? "" : "muted"} ${isCollapsed ? "collapsed" : ""}"><div class="effect-title"><button class="toggle ${effect.enabled ? "on" : ""}" data-toggle="${effect.id}">${effect.enabled ? "●" : "○"}</button><button class="effect-summary" data-collapse="${effect.id}"><strong>${effectLabel(effect.kind)}</strong><span class="summary-value">${effect.value}${effectUnit(effect.kind)}</span><span class="chevron">${isCollapsed ? "⌄" : "⌃"}</span></button><button class="icon" data-remove="${effect.id}" aria-label="Remove effect">×</button></div>${isCollapsed ? "" : `<input class="range" data-value="${effect.id}" type="range" min="${ranges[0]}" max="${ranges[1]}" step="${effect.kind === "blur" || effect.kind === "sharpen" ? "0.5" : "1"}" value="${effect.value}"><div class="row-actions"><span>STACK ${String(index + 1).padStart(2, "0")}</span><div><button data-up="${index}" ${index === 0 ? "disabled" : ""}>↑</button><button data-down="${index}" ${index === state.effects.length - 1 ? "disabled" : ""}>↓</button></div></div>`}</article>`;
