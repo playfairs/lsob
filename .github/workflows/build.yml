@@ -35,7 +35,7 @@ jobs:
           path: release/lsob.exe
 
   macos:
-    name: macOS installers
+    name: macOS installer
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,23 +49,17 @@ jobs:
       - name: Package installers
         run: |
           set -euo pipefail
-          rm -rf release dmg-root
-          mkdir -p release dmg-root
+          mkdir -p release
           find src-tauri/target/release/bundle -maxdepth 3 -print
           app_path=$(find src-tauri/target/release/bundle/macos -type d -name '*.app' -print -quit)
           test -n "$app_path"
           test -d "$app_path"
           xattr -cr "$app_path" || true
-          ditto "$app_path" "dmg-root/$(basename "$app_path")"
-          ln -s /Applications dmg-root/Applications
-          hdiutil create -volname l_SOB -srcfolder dmg-root -ov -format UDZO release/lsob.dmg
           pkgbuild --component "$app_path" --install-location /Applications release/lsob.pkg
       - uses: actions/upload-artifact@v4
         with:
           name: lsob-macos
-          path: |
-            release/lsob.dmg
-            release/lsob.pkg
+          path: release/lsob.pkg
 
   release:
     name: Attach release files
@@ -82,6 +76,5 @@ jobs:
         with:
           files: |
             release/lsob.exe
-            release/lsob.dmg
             release/lsob.pkg
           generate_release_notes: true
