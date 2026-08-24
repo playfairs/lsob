@@ -1,9 +1,9 @@
 [package]
 name = "lsob"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "lsob (l_SOB) is a simple CLI tool to lovingly destroy the clarity of emojis and images."
-license = "MIT"
+license = "Unlicense"
 
 [lib]
 path = "app/lib.rs"
