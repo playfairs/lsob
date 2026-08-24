@@ -1,6 +1,6 @@
 # l_SOB
 
-`lsob (l_SOB) is a simple CLI tool to lovingly destroy the clarity of emojis and images.`
+`lsob (l_SOB) is a simple tool to lovingly destroy the clarity of emojis and images.`
 
 ## Usage
 
