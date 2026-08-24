@@ -1,0 +1,31 @@
+[package]
+name = "lsob"
+version = "0.1.0"
+edition = "2021"
+description = "lsob (l_SOB) is a simple CLI tool to lovingly destroy the clarity of emojis and images."
+license = "MIT"
+
+[lib]
+path = "app/lib.rs"
+
+[[bin]]
+name = "lsob"
+path = "app/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+image = { version = "0.25", features = ["png", "jpeg", "webp", "gif", "bmp", "tiff"] }
+rayon = "1"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+strip = true
+
+[workspace]
+resolver = "2"
+exclude = ["xtask", "src-tauri"]
+
+[workspace.metadata.crane]
+name = "lsob"

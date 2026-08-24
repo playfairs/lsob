@@ -1,0 +1,14 @@
+/target
+/xtask/target
+/src-tauri/target
+/src-tauri/gen
+node_modules
+dist
+result
+.direnv
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+npm-debug.log*

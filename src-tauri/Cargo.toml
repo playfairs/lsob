@@ -1,0 +1,16 @@
+[package]
+name = "lsob"
+version = "0.1.1"
+description = "lsob (l_SOB) is a simple CLI tool to lovingly destroy the clarity of emojis and images."
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+base64 = "0.22"
+image = { version = "0.25", features = ["png", "jpeg", "webp", "gif", "bmp", "tiff"] }
+lsob = { path = ".." }
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
