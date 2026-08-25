@@ -7,9 +7,11 @@ export function Canvas() {
     <div class="canvas-panel">
       <div class="canvas-surface">
         <div class="canvas-grid"></div>
-        ${hasImage
-          ? `<img class="canvas-image" draggable="false" src="${editorState.previewUrl}" alt="${editorState.fileName || "Editor preview"}" />`
-          : `<div class="canvas-placeholder"><div class="canvas-empty">Open an image to begin editing</div></div>`}
+        ${
+          hasImage
+            ? `<img class="canvas-image" draggable="false" src="${editorState.previewUrl}" alt="${editorState.fileName || "Editor preview"}" />`
+            : `<div class="canvas-placeholder"><div class="canvas-empty">Open an image to begin editing</div></div>`
+        }
       </div>
       <div class="canvas-controls">
         <button type="button" data-canvas-action="fit">Fit</button>

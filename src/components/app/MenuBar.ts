@@ -17,11 +17,32 @@ const menuGroups = [
   },
   {
     label: "Colors",
-    items: ["Brightness / Contrast", "Levels", "Curves", "Hue / Saturation", "Desaturate"],
+    items: [
+      "Brightness / Contrast",
+      "Levels",
+      "Curves",
+      "Hue / Saturation",
+      "Desaturate",
+    ],
   },
   {
     label: "Filters",
-    items: ["Blur", "Enhance", "Distorts", "Light & Shadow", "Noise", "Edge Detect", "Generic", "Combine", "Artistic", "Decor", "Map", "Render", "Web", "Animation"],
+    items: [
+      "Blur",
+      "Enhance",
+      "Distorts",
+      "Light & Shadow",
+      "Noise",
+      "Edge Detect",
+      "Generic",
+      "Combine",
+      "Artistic",
+      "Decor",
+      "Map",
+      "Render",
+      "Web",
+      "Animation",
+    ],
   },
   {
     label: "View",
@@ -47,7 +68,8 @@ export function MenuBar() {
                 <div class="menu-popup" role="menu" aria-label="${group.label} menu">
                   ${group.items
                     .map(
-                      (item) => `<button class="menu-item" type="button" data-menu-item="${item}">${item}</button>`,
+                      (item) =>
+                        `<button class="menu-item" type="button" data-menu-item="${item}">${item}</button>`,
                     )
                     .join("")}
                 </div>

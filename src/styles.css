@@ -18,7 +18,9 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body, #app {
+html,
+body,
+#app {
   width: 100%;
   height: 100%;
   margin: 0;
@@ -31,7 +33,8 @@ body {
   font-family: Inter, "Segoe UI", sans-serif;
 }
 
-button, input {
+button,
+input {
   font: inherit;
 }
 
@@ -43,7 +46,10 @@ button {
 }
 
 button:hover {
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .app-shell {
@@ -184,7 +190,7 @@ button:hover {
   align-items: center;
   justify-content: center;
   color: var(--soft);
-  background: rgba(255,255,255,0.02);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .tool-button.selected,
@@ -196,7 +202,9 @@ button:hover {
   color: var(--accent-strong);
 }
 
-.tool-icon { font-size: 14px; }
+.tool-icon {
+  font-size: 14px;
+}
 
 .editor-shell {
   display: grid;
@@ -278,18 +286,24 @@ button:hover {
   min-height: 0;
   overflow: hidden;
   background:
-    linear-gradient(45deg, rgba(255,255,255,0.02) 25%, transparent 25%),
-    linear-gradient(-45deg, rgba(255,255,255,0.02) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.02) 75%),
-    linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.02) 75%);
+    linear-gradient(45deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.02) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.02) 75%);
   background-size: 26px 26px;
-  background-position: 0 0, 0 13px, 13px -13px, -13px 0;
+  background-position:
+    0 0,
+    0 13px,
+    13px -13px,
+    -13px 0;
 }
 
 .canvas-grid {
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(rgba(180,217,109,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(180,217,109,0.08) 1px, transparent 1px);
+  background-image:
+    linear-gradient(rgba(180, 217, 109, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(180, 217, 109, 0.08) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -324,7 +338,7 @@ button:hover {
   gap: 8px;
   padding: 8px 10px;
   border-top: 1px solid var(--border);
-  background: rgba(0,0,0,0.08);
+  background: rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
 }
 
@@ -395,11 +409,13 @@ button:hover {
 
 .layer-row.selected,
 .layer-row:hover {
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
   border-color: var(--border);
 }
 
-.layer-visibility { opacity: 0.8; }
+.layer-visibility {
+  opacity: 0.8;
+}
 
 .effects-search-wrap {
   padding: 10px 10px 0;
@@ -419,7 +435,7 @@ button:hover {
   margin-bottom: 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: rgba(255,255,255,0.01);
+  background: rgba(255, 255, 255, 0.01);
   overflow: hidden;
 }
 
@@ -439,7 +455,9 @@ button:hover {
   padding: 0 8px 8px;
 }
 
-.effect-group.expanded .group-items { display: block; }
+.effect-group.expanded .group-items {
+  display: block;
+}
 
 .effect-item {
   width: 100%;
@@ -453,7 +471,7 @@ button:hover {
 .effect-detail {
   border-top: 1px solid var(--border);
   padding: 12px;
-  background: rgba(0,0,0,0.1);
+  background: rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
   max-height: 42%;
   overflow: auto;
@@ -533,7 +551,11 @@ button:hover {
   line-height: 1.5;
 }
 
-.parameter-list { display: flex; flex-direction: column; gap: 12px; }
+.parameter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 .parameter-row {
   display: grid;
   gap: 8px;
@@ -588,5 +610,7 @@ button:hover {
   color: var(--muted);
 }
 @media (max-width: 1100px) {
-  .editor-shell { grid-template-columns: minmax(0,1fr) 280px; }
+  .editor-shell {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
 }

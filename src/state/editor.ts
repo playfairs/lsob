@@ -1,4 +1,9 @@
-import type { EffectDefinition, EffectParameterDefinition, EffectParameterValue, EffectStackItem } from "../types/effects";
+import type {
+  EffectDefinition,
+  EffectParameterDefinition,
+  EffectParameterValue,
+  EffectStackItem,
+} from "../types/effects";
 
 export interface ToolDefinition {
   id: string;
@@ -56,15 +61,23 @@ export const editorState = {
 export function getDefaultParameterValue(param: EffectParameterDefinition) {
   if (param.default !== undefined) return param.default;
   if (param.type === "boolean") return false;
-  if (param.type === "enum" && param.options?.length) return param.options[0].value;
-  if (param.type === "number" || param.type === "integer" || param.type === "angle" || param.type === "percentage") {
+  if (param.type === "enum" && param.options?.length)
+    return param.options[0].value;
+  if (
+    param.type === "number" ||
+    param.type === "integer" ||
+    param.type === "angle" ||
+    param.type === "percentage"
+  ) {
     return param.min ?? 0;
   }
   return 0;
 }
 
 export function getSelectedEffect() {
-  return editorState.effects.find((effect) => effect.id === editorState.selectedEffectId);
+  return editorState.effects.find(
+    (effect) => effect.id === editorState.selectedEffectId,
+  );
 }
 
 export function resetSelectedEffectValues(effect?: EffectDefinition) {
@@ -73,12 +86,15 @@ export function resetSelectedEffectValues(effect?: EffectDefinition) {
 
   editorState.selectedEffectValues = {};
   active.parameters.forEach((param) => {
-    editorState.selectedEffectValues[param.id] = getDefaultParameterValue(param);
+    editorState.selectedEffectValues[param.id] =
+      getDefaultParameterValue(param);
   });
 }
 
 export function pushEffectToStack(effect: EffectDefinition) {
-  const existing = editorState.effectStack.find((item) => item.effectId === effect.id);
+  const existing = editorState.effectStack.find(
+    (item) => item.effectId === effect.id,
+  );
   if (existing) {
     editorState.selectedStackItemId = existing.id;
     editorState.selectedEffectId = existing.effectId;
@@ -102,15 +118,22 @@ export function pushEffectToStack(effect: EffectDefinition) {
 }
 
 export function selectEffectStackItem(itemId: number) {
-  const item = editorState.effectStack.find((stackItem) => stackItem.id === itemId);
+  const item = editorState.effectStack.find(
+    (stackItem) => stackItem.id === itemId,
+  );
   if (!item) return;
   editorState.selectedStackItemId = item.id;
   editorState.selectedEffectId = item.effectId;
   editorState.selectedEffectValues = { ...item.values };
 }
 
-export function updateSelectedEffectValue(parameterId: string, value: EffectParameterValue) {
+export function updateSelectedEffectValue(
+  parameterId: string,
+  value: EffectParameterValue,
+) {
   editorState.selectedEffectValues[parameterId] = value;
-  const item = editorState.effectStack.find((stackItem) => stackItem.id === editorState.selectedStackItemId);
+  const item = editorState.effectStack.find(
+    (stackItem) => stackItem.id === editorState.selectedStackItemId,
+  );
   if (item) item.values[parameterId] = value;
 }

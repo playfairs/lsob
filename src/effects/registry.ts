@@ -20,7 +20,9 @@ export function buildEffectGroups(effects: EffectDefinition[], query = "") {
       effect.category,
       effect.description,
       ...(effect.aliases ?? []),
-    ].join(" ").toLowerCase();
+    ]
+      .join(" ")
+      .toLowerCase();
 
     return haystacks.includes(normalized);
   });

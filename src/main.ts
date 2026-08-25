@@ -13,7 +13,12 @@ import {
 } from "./state/editor";
 
 const app = document.querySelector<HTMLDivElement>("#app");
-let moveStart: { x: number; y: number; offsetX: number; offsetY: number } | null = null;
+let moveStart: {
+  x: number;
+  y: number;
+  offsetX: number;
+  offsetY: number;
+} | null = null;
 let previewRequest = 0;
 let previewTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -24,7 +29,9 @@ async function bootstrap() {
 
   const effects = await loadEffectCatalog();
   editorState.effects = effects;
-  editorState.categories = Array.from(new Set(effects.map((effect) => effect.category)));
+  editorState.categories = Array.from(
+    new Set(effects.map((effect) => effect.category)),
+  );
   editorState.expandedCategories = new Set();
 
   if (effects[0]) {
@@ -53,7 +60,9 @@ function bindUI() {
         const group = menuButton.closest(".menu-group");
         if (!group) return;
         const isOpen = group.classList.contains("open");
-        document.querySelectorAll(".menu-group").forEach((item) => item.classList.remove("open"));
+        document
+          .querySelectorAll(".menu-group")
+          .forEach((item) => item.classList.remove("open"));
         if (!isOpen) group.classList.add("open");
         return;
       }
@@ -63,7 +72,9 @@ function bindUI() {
         const item = menuItem.getAttribute("data-menu-item");
         if (item === "Open") triggerImagePicker();
         if (item === "Export") exportCurrentImage();
-        document.querySelectorAll(".menu-group").forEach((group) => group.classList.remove("open"));
+        document
+          .querySelectorAll(".menu-group")
+          .forEach((group) => group.classList.remove("open"));
         return;
       }
 
@@ -106,8 +117,10 @@ function bindUI() {
       const canvasButton = target.closest("[data-canvas-action]");
       if (canvasButton) {
         const action = canvasButton.getAttribute("data-canvas-action");
-        if (action === "zoom-in") editorState.zoom = Math.min(200, editorState.zoom + 10);
-        if (action === "zoom-out") editorState.zoom = Math.max(25, editorState.zoom - 10);
+        if (action === "zoom-in")
+          editorState.zoom = Math.min(200, editorState.zoom + 10);
+        if (action === "zoom-out")
+          editorState.zoom = Math.max(25, editorState.zoom - 10);
         if (action === "reset") editorState.zoom = 100;
         if (action === "fit") editorState.zoom = 100;
         render();
@@ -123,7 +136,9 @@ function bindUI() {
         }
         if (action === "cancel") {
           const stackId = editorState.selectedStackItemId;
-          editorState.effectStack = editorState.effectStack.filter((item) => item.id !== stackId);
+          editorState.effectStack = editorState.effectStack.filter(
+            (item) => item.id !== stackId,
+          );
           const next = editorState.effectStack.at(-1);
           if (next) {
             selectEffectStackItem(next.id);
@@ -140,9 +155,13 @@ function bindUI() {
 
       const removeButton = target.closest("[data-remove-stack-id]");
       if (removeButton) {
-        const stackId = Number(removeButton.getAttribute("data-remove-stack-id"));
+        const stackId = Number(
+          removeButton.getAttribute("data-remove-stack-id"),
+        );
         const removingSelected = editorState.selectedStackItemId === stackId;
-        editorState.effectStack = editorState.effectStack.filter((item) => item.id !== stackId);
+        editorState.effectStack = editorState.effectStack.filter(
+          (item) => item.id !== stackId,
+        );
         if (removingSelected) {
           const next = editorState.effectStack.at(-1);
           if (next) {
@@ -159,7 +178,9 @@ function bindUI() {
       }
 
       if (!target.closest(".menu-group") && !target.closest(".menu-button")) {
-        document.querySelectorAll(".menu-group").forEach((group) => group.classList.remove("open"));
+        document
+          .querySelectorAll(".menu-group")
+          .forEach((group) => group.classList.remove("open"));
       }
     });
 
@@ -171,14 +192,18 @@ function bindUI() {
         return;
       }
       if (!target.matches("[data-parameter-id]")) return;
-      updateSelectedEffectValue(target.dataset.parameterId ?? "", Number(target.value));
+      updateSelectedEffectValue(
+        target.dataset.parameterId ?? "",
+        Number(target.value),
+      );
       const output = target.parentElement?.querySelector("output");
       if (output) output.textContent = target.value;
       schedulePreview();
     });
 
     app.addEventListener("dragover", (event) => {
-      if ((event.target as HTMLElement).closest(".canvas-surface")) event.preventDefault();
+      if ((event.target as HTMLElement).closest(".canvas-surface"))
+        event.preventDefault();
     });
 
     app.addEventListener("drop", (event) => {
@@ -197,14 +222,20 @@ function triggerImagePicker() {
   void open({
     multiple: false,
     directory: false,
-    filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "tiff"] }],
+    filters: [
+      {
+        name: "Images",
+        extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "tiff"],
+      },
+    ],
   }).then((path) => {
-     if (typeof path === "string") void loadImagePath(path);
+    if (typeof path === "string") void loadImagePath(path);
   });
 }
 
 function loadImageFile(file: File) {
-  if (editorState.previewUrl.startsWith("blob:")) URL.revokeObjectURL(editorState.previewUrl);
+  if (editorState.previewUrl.startsWith("blob:"))
+    URL.revokeObjectURL(editorState.previewUrl);
   editorState.fileName = file.name;
   editorState.previewUrl = URL.createObjectURL(file);
   editorState.originalPreviewUrl = editorState.previewUrl;
@@ -254,7 +285,10 @@ async function renderPreview(repaint = true) {
       value: Number(Object.values(item.values)[0] ?? 0),
       enabled: item.enabled,
     }));
-    const previewUrl = await invoke<string>("preview_image", { bytes, effects });
+    const previewUrl = await invoke<string>("preview_image", {
+      bytes,
+      effects,
+    });
     if (request !== previewRequest) return;
     editorState.previewUrl = previewUrl;
     if (repaint) {
@@ -281,11 +315,12 @@ async function setupNativeFileDrop() {
   try {
     await getCurrentWindow().onDragDropEvent((event) => {
       if (event.payload.type !== "drop") return;
-      const imagePath = event.payload.paths.find((path) => /\.(png|jpe?g|gif|webp|bmp|tiff?)$/i.test(path));
+      const imagePath = event.payload.paths.find((path) =>
+        /\.(png|jpe?g|gif|webp|bmp|tiff?)$/i.test(path),
+      );
       if (imagePath) loadImagePath(imagePath);
     });
-  } catch {
-  }
+  } catch {}
 }
 
 function exportCurrentImage() {
