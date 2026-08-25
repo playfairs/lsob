@@ -1,335 +1,299 @@
-import { invoke } from "@tauri-apps/api/core";
-import { save } from "@tauri-apps/plugin-dialog";
 import "./styles.css";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { AppShell } from "./components/app/AppShell";
+import { loadEffectCatalog } from "./effects/registry";
+import {
+  editorState,
+  pushEffectToStack,
+  resetSelectedEffectValues,
+  selectEffectStackItem,
+  updateSelectedEffectValue,
+} from "./state/editor";
 
-type EffectKind =
-  | "blur"
-  | "pixelate"
-  | "brightness"
-  | "contrast"
-  | "hue"
-  | "sharpen"
-  | "noise"
-  | "rgb"
-  | "radial"
-  | "melt"
-  | "glitch"
-  | "finish";
-type Effect = { id: number; kind: EffectKind; value: number; enabled: boolean };
+const app = document.querySelector<HTMLDivElement>("#app");
+let moveStart: { x: number; y: number; offsetX: number; offsetY: number } | null = null;
+let previewRequest = 0;
+let previewTimer: ReturnType<typeof setTimeout> | undefined;
 
-const state = {
-  bytes: [] as number[],
-  previewBytes: [] as number[],
-  fileName: "",
-  preview: "",
-  previewReady: false,
-  effects: [] as Effect[],
-  collapsed: new Set<number>(),
-  nextId: 1,
-  renderToken: 0,
-  previewRunning: false,
-  previewPending: false,
-};
-const app = document.querySelector<HTMLDivElement>("#app")!;
+async function bootstrap() {
+  if (!app) return;
 
-function effectLabel(kind: EffectKind) {
-  return {
-    blur: "Gaussian Blur",
-    pixelate: "Pixelation",
-    brightness: "Brightness",
-    contrast: "Contrast",
-    hue: "Hue Shift",
-    sharpen: "Sharpen",
-    noise: "Noise",
-    rgb: "RGB Shift",
-    radial: "Radial Blur",
-    melt: "Melt",
-    glitch: "Glitch",
-    finish: "Finish",
-  }[kind];
-}
+  await setupNativeFileDrop();
 
-function effectDefault(kind: EffectKind) {
-  return {
-    blur: 8,
-    pixelate: 10,
-    brightness: 0,
-    contrast: 0,
-    hue: 0,
-    sharpen: 2,
-    noise: 18,
-    rgb: 8,
-    radial: 28,
-    melt: 20,
-    glitch: 25,
-    finish: 86,
-  }[kind];
-}
+  const effects = await loadEffectCatalog();
+  editorState.effects = effects;
+  editorState.categories = Array.from(new Set(effects.map((effect) => effect.category)));
+  editorState.expandedCategories = new Set();
 
-function effectUnit(kind: EffectKind) {
-  return kind === "blur" || kind === "pixelate" || kind === "rgb"
-    ? "px"
-    : kind === "hue"
-      ? "°"
-      : kind === "radial" || kind === "melt" || kind === "glitch"
-        ? "%"
-        : "%";
+  if (effects[0]) {
+    resetSelectedEffectValues(effects[0]);
+  }
+
+  render();
 }
 
 function render() {
-  app.innerHTML = `
-    <main class="shell">
-      <header class="topbar">
-        <div class="brand"><span class="brand-mark">l_</span><span>SOB</span><small>IMAGE DESTRUCTION LAB</small></div>
-        <div class="top-actions"><label class="open-button">Open image<input id="file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/tiff"></label><button id="export" class="accent" ${state.previewReady ? "" : "disabled"}>Export PNG</button></div>
-      </header>
-      <section class="workspace">
-        <div class="stage ${state.preview ? "has-image" : ""}">
-          ${state.preview ? `<img src="${state.preview}" alt="Live preview">` : `<div class="empty"><div class="empty-icon">+</div><strong>Drop an image here</strong><span>PNG, WebP, JPEG, GIF, BMP or TIFF</span><label class="drop-button">Choose file<input id="empty-input" type="file" accept="image/*"></label></div>`}
-          ${state.bytes.length ? `<div class="stage-meta"><span>${state.fileName}</span><span>LIVE PREVIEW · 512 PX</span></div>` : ""}
-        </div>
-        <aside class="inspector">
-          <div class="inspector-head"><div><span class="eyebrow">PROCESS</span><h1>Effect stack</h1></div><div class="stack-tools"><button data-collapse-all aria-label="Collapse all effects">−</button><button data-expand-all aria-label="Expand all effects">+</button><span class="count">${state.effects.length}</span></div></div>
-          <div id="effects" class="effects">${state.effects.length ? state.effects.map((effect, index) => effectRow(effect, index)).join("") : `<div class="stack-empty">Add an effect to start destroying clarity.</div>`}</div>
-          <div class="add-effect"><span class="eyebrow">ADD EFFECT</span><div class="effect-buttons"><button class="finish-button" data-add="finish">Finish</button><button data-add="blur">Blur</button><button data-add="radial">Radial</button><button data-add="pixelate">Pixelate</button><button data-add="sharpen">Sharpen</button><button data-add="melt">Melt</button><button data-add="glitch">Glitch</button><button data-add="rgb">RGB</button><button data-add="noise">Noise</button><button data-add="brightness">Light</button><button data-add="contrast">Contrast</button><button data-add="hue">Hue</button></div></div>
-          <div class="status">${state.bytes.length ? "Preview updates as you work" : "Waiting for an image"}</div>
-        </aside>
-      </section>
-    </main>`;
-  bind();
+  if (!app) return;
+  app.innerHTML = AppShell();
+  bindUI();
 }
 
-function effectRow(effect: Effect, index: number) {
-  const ranges = {
-    blur: [0, 32],
-    pixelate: [1, 64],
-    brightness: [-100, 100],
-    contrast: [-100, 100],
-    hue: [-180, 180],
-    sharpen: [0, 8],
-    noise: [0, 80],
-    rgb: [0, 40],
-    radial: [0, 100],
-    melt: [0, 80],
-    glitch: [0, 80],
-    finish: [0, 100],
-  }[effect.kind];
-  const isCollapsed = state.collapsed.has(effect.id);
-  return `<article class="effect-row ${effect.enabled ? "" : "muted"} ${isCollapsed ? "collapsed" : ""}"><div class="effect-title"><button class="toggle ${effect.enabled ? "on" : ""}" data-toggle="${effect.id}">${effect.enabled ? "●" : "○"}</button><button class="effect-summary" data-collapse="${effect.id}"><strong>${effectLabel(effect.kind)}</strong><span class="summary-value">${effect.value}${effectUnit(effect.kind)}</span><span class="chevron">${isCollapsed ? "⌄" : "⌃"}</span></button><button class="icon" data-remove="${effect.id}" aria-label="Remove effect">×</button></div>${isCollapsed ? "" : `<input class="range" data-value="${effect.id}" type="range" min="${ranges[0]}" max="${ranges[1]}" step="${effect.kind === "blur" || effect.kind === "sharpen" ? "0.5" : "1"}" value="${effect.value}"><div class="row-actions"><span>STACK ${String(index + 1).padStart(2, "0")}</span><div><button data-up="${index}" ${index === 0 ? "disabled" : ""}>↑</button><button data-down="${index}" ${index === state.effects.length - 1 ? "disabled" : ""}>↓</button></div></div>`}</article>`;
-}
+function bindUI() {
+  if (!app) return;
 
-function bind() {
-  document
-    .querySelector<HTMLInputElement>("#file-input")
-    ?.addEventListener("change", (e) =>
-      loadFile((e.target as HTMLInputElement).files?.[0]),
-    );
-  document
-    .querySelector<HTMLInputElement>("#empty-input")
-    ?.addEventListener("change", (e) =>
-      loadFile((e.target as HTMLInputElement).files?.[0]),
-    );
-  document
-    .querySelector<HTMLButtonElement>("#export")
-    ?.addEventListener("click", exportImage);
-  document
-    .querySelector<HTMLButtonElement>("[data-collapse-all]")
-    ?.addEventListener("click", () => {
-      state.effects.forEach((effect) => state.collapsed.add(effect.id));
-      render();
-    });
-  document
-    .querySelector<HTMLButtonElement>("[data-expand-all]")
-    ?.addEventListener("click", () => {
-      state.collapsed.clear();
-      render();
-    });
-  document
-    .querySelectorAll<HTMLButtonElement>("[data-collapse]")
-    .forEach((button) =>
-      button.addEventListener("click", () => {
-        const id = Number(button.dataset.collapse);
-        if (state.collapsed.has(id)) state.collapsed.delete(id);
-        else state.collapsed.add(id);
-        render();
-      }),
-    );
-  document.querySelectorAll<HTMLButtonElement>("[data-add]").forEach((button) =>
-    button.addEventListener("click", () => {
-      const kind = button.dataset.add as EffectKind;
-      const effect = {
-        id: state.nextId++,
-        kind,
-        value: effectDefault(kind),
-        enabled: true,
-      };
-      state.effects.push(effect);
-      state.collapsed.delete(effect.id);
-      render();
-      schedulePreview();
-    }),
-  );
-  document
-    .querySelectorAll<HTMLButtonElement>("[data-toggle]")
-    .forEach((button) =>
-      button.addEventListener("click", () => {
-        const effect = state.effects.find(
-          (item) => item.id === Number(button.dataset.toggle),
-        );
-        if (effect) effect.enabled = !effect.enabled;
-        render();
-        schedulePreview();
-      }),
-    );
-  document
-    .querySelectorAll<HTMLButtonElement>("[data-remove]")
-    .forEach((button) =>
-      button.addEventListener("click", () => {
-        state.effects = state.effects.filter(
-          (item) => item.id !== Number(button.dataset.remove),
-        );
-        render();
-        schedulePreview();
-      }),
-    );
-  document.querySelectorAll<HTMLInputElement>("[data-value]").forEach((input) =>
-    input.addEventListener("input", () => {
-      const effect = state.effects.find(
-        (item) => item.id === Number(input.dataset.value),
-      );
-      if (effect) {
-        effect.value = Number(input.value);
-        const value = input
-          .closest(".effect-row")
-          ?.querySelector(".summary-value");
-        if (value)
-          value.textContent = `${effect.value}${effectUnit(effect.kind)}`;
-        schedulePreview();
+  if (!app.dataset.bound) {
+    app.addEventListener("click", (event) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+
+      const menuButton = target.closest(".menu-button");
+      if (menuButton) {
+        const group = menuButton.closest(".menu-group");
+        if (!group) return;
+        const isOpen = group.classList.contains("open");
+        document.querySelectorAll(".menu-group").forEach((item) => item.classList.remove("open"));
+        if (!isOpen) group.classList.add("open");
+        return;
       }
-    }),
-  );
-  document
-    .querySelectorAll<HTMLButtonElement>("[data-up]")
-    .forEach((button) =>
-      button.addEventListener("click", () =>
-        move(Number(button.dataset.up), -1),
-      ),
-    );
-  document
-    .querySelectorAll<HTMLButtonElement>("[data-down]")
-    .forEach((button) =>
-      button.addEventListener("click", () =>
-        move(Number(button.dataset.down), 1),
-      ),
-    );
-  const stage = document.querySelector(".stage");
-  stage?.addEventListener("dragover", (event) => {
-    event.preventDefault();
-    stage.classList.add("dragging");
+
+      const menuItem = target.closest(".menu-item");
+      if (menuItem) {
+        const item = menuItem.getAttribute("data-menu-item");
+        if (item === "Open") triggerImagePicker();
+        if (item === "Export") exportCurrentImage();
+        document.querySelectorAll(".menu-group").forEach((group) => group.classList.remove("open"));
+        return;
+      }
+
+      const effectButton = target.closest("[data-effect-id]");
+      if (effectButton) {
+        const id = effectButton.getAttribute("data-effect-id");
+        if (!id) return;
+        editorState.selectedEffectId = id;
+        const effect = editorState.effects.find((item) => item.id === id);
+        if (effect) {
+          resetSelectedEffectValues(effect);
+          pushEffectToStack(effect);
+        }
+        render();
+        void renderPreview();
+        return;
+      }
+
+      const stackButton = target.closest("[data-stack-id]");
+      if (stackButton) {
+        const stackId = Number(stackButton.getAttribute("data-stack-id"));
+        if (Number.isFinite(stackId)) selectEffectStackItem(stackId);
+        render();
+        return;
+      }
+
+      const groupButton = target.closest("[data-group]");
+      if (groupButton) {
+        const category = groupButton.getAttribute("data-group");
+        if (!category) return;
+        if (editorState.expandedCategories.has(category)) {
+          editorState.expandedCategories.delete(category);
+        } else {
+          editorState.expandedCategories.add(category);
+        }
+        render();
+        return;
+      }
+
+      const canvasButton = target.closest("[data-canvas-action]");
+      if (canvasButton) {
+        const action = canvasButton.getAttribute("data-canvas-action");
+        if (action === "zoom-in") editorState.zoom = Math.min(200, editorState.zoom + 10);
+        if (action === "zoom-out") editorState.zoom = Math.max(25, editorState.zoom - 10);
+        if (action === "reset") editorState.zoom = 100;
+        if (action === "fit") editorState.zoom = 100;
+        render();
+        return;
+      }
+
+      const effectAction = target.closest("[data-effect-action]");
+      if (effectAction) {
+        const action = effectAction.getAttribute("data-effect-action");
+        if (action === "apply") {
+          void renderPreview();
+          return;
+        }
+        if (action === "cancel") {
+          const stackId = editorState.selectedStackItemId;
+          editorState.effectStack = editorState.effectStack.filter((item) => item.id !== stackId);
+          const next = editorState.effectStack.at(-1);
+          if (next) {
+            selectEffectStackItem(next.id);
+          } else {
+            editorState.selectedStackItemId = 0;
+            editorState.selectedEffectId = "";
+            editorState.selectedEffectValues = {};
+          }
+          render();
+          void renderPreview();
+        }
+        return;
+      }
+
+      const removeButton = target.closest("[data-remove-stack-id]");
+      if (removeButton) {
+        const stackId = Number(removeButton.getAttribute("data-remove-stack-id"));
+        const removingSelected = editorState.selectedStackItemId === stackId;
+        editorState.effectStack = editorState.effectStack.filter((item) => item.id !== stackId);
+        if (removingSelected) {
+          const next = editorState.effectStack.at(-1);
+          if (next) {
+            selectEffectStackItem(next.id);
+          } else {
+            editorState.selectedStackItemId = 0;
+            editorState.selectedEffectId = "";
+            editorState.selectedEffectValues = {};
+          }
+        }
+        render();
+        void renderPreview();
+        return;
+      }
+
+      if (!target.closest(".menu-group") && !target.closest(".menu-button")) {
+        document.querySelectorAll(".menu-group").forEach((group) => group.classList.remove("open"));
+      }
+    });
+
+    app.addEventListener("input", (event) => {
+      const target = event.target as HTMLInputElement;
+      if (target.matches(".effects-search")) {
+        editorState.searchQuery = target.value;
+        render();
+        return;
+      }
+      if (!target.matches("[data-parameter-id]")) return;
+      updateSelectedEffectValue(target.dataset.parameterId ?? "", Number(target.value));
+      const output = target.parentElement?.querySelector("output");
+      if (output) output.textContent = target.value;
+      schedulePreview();
+    });
+
+    app.addEventListener("dragover", (event) => {
+      if ((event.target as HTMLElement).closest(".canvas-surface")) event.preventDefault();
+    });
+
+    app.addEventListener("drop", (event) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest(".canvas-surface")) return;
+      event.preventDefault();
+      const file = event.dataTransfer?.files[0];
+      if (file?.type.startsWith("image/")) loadImageFile(file);
+    });
+
+    app.dataset.bound = "true";
+  }
+}
+
+function triggerImagePicker() {
+  void open({
+    multiple: false,
+    directory: false,
+    filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "tiff"] }],
+  }).then((path) => {
+     if (typeof path === "string") void loadImagePath(path);
   });
-  stage?.addEventListener("dragleave", () =>
-    stage.classList.remove("dragging"),
-  );
-  stage?.addEventListener("drop", (event) => {
-    const drop = event as DragEvent;
-    drop.preventDefault();
-    stage.classList.remove("dragging");
-    loadFile(drop.dataTransfer?.files[0]);
-  });
 }
 
-function move(index: number, direction: number) {
-  const next = index + direction;
-  if (next < 0 || next >= state.effects.length) return;
-  [state.effects[index], state.effects[next]] = [
-    state.effects[next],
-    state.effects[index],
-  ];
+function loadImageFile(file: File) {
+  if (editorState.previewUrl.startsWith("blob:")) URL.revokeObjectURL(editorState.previewUrl);
+  editorState.fileName = file.name;
+  editorState.previewUrl = URL.createObjectURL(file);
+  editorState.originalPreviewUrl = editorState.previewUrl;
+  editorState.effectStack = [];
+  editorState.selectedStackItemId = 0;
+  editorState.imageOffsetX = 0;
+  editorState.imageOffsetY = 0;
+  editorState.imageScale = 1;
+  editorState.imageRotation = 0;
   render();
-  schedulePreview();
 }
 
-async function loadFile(file?: File) {
-  if (!file) return;
-  state.bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
-  state.previewBytes = await createPreviewBytes(file);
-  state.fileName = file.name;
-  state.preview = URL.createObjectURL(file);
+async function loadImagePath(path: string) {
+  editorState.fileName = path.split(/[\\/]/).pop() || "Untitled image";
+  try {
+    editorState.previewUrl = await invoke<string>("load_image", { path });
+  } catch {
+    editorState.previewUrl = convertFileSrc(path);
+  }
+  editorState.originalPreviewUrl = editorState.previewUrl;
+  editorState.effectStack = [];
+  editorState.selectedStackItemId = 0;
+  editorState.imageOffsetX = 0;
+  editorState.imageOffsetY = 0;
+  editorState.imageScale = 1;
+  editorState.imageRotation = 0;
   render();
-  await schedulePreview();
 }
 
-async function createPreviewBytes(file: File): Promise<number[]> {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  const blob = await new Promise<Blob>((resolve, reject) =>
-    canvas.toBlob(
-      (result) =>
-        result
-          ? resolve(result)
-          : reject(new Error("Could not create preview")),
-      "image/png",
-    ),
-  );
-  return Array.from(new Uint8Array(await blob.arrayBuffer()));
-}
-
-let previewTimer: number | undefined;
-function schedulePreview() {
-  state.previewReady = false;
-  document
-    .querySelector<HTMLButtonElement>("#export")
-    ?.setAttribute("disabled", "true");
-  window.clearTimeout(previewTimer);
-  previewTimer = window.setTimeout(() => {
-    void renderPreview();
-  }, 30);
-}
-
-async function renderPreview() {
-  if (!state.previewBytes.length) return;
-  if (state.previewRunning) {
-    state.previewPending = true;
+async function renderPreview(repaint = true) {
+  const request = ++previewRequest;
+  if (!editorState.originalPreviewUrl) return;
+  if (!editorState.effectStack.length) {
+    editorState.previewUrl = editorState.originalPreviewUrl;
+    if (!repaint) {
+      const image = app?.querySelector<HTMLImageElement>("[data-image-target]");
+      if (image) image.src = editorState.previewUrl;
+    }
     return;
   }
-  state.previewRunning = true;
-  do {
-    state.previewPending = false;
-    const token = ++state.renderToken;
-    const preview = await invoke<string>("preview_image", {
-      bytes: state.previewBytes,
-      effects: state.effects,
-    });
-    if (token === state.renderToken) {
-      state.preview = preview;
-      state.previewReady = true;
-      const image = document.querySelector<HTMLImageElement>(".stage img");
-      if (image) image.src = preview;
-      document
-        .querySelector<HTMLButtonElement>("#export")
-        ?.removeAttribute("disabled");
-    }
-  } while (state.previewPending);
-  state.previewRunning = false;
-}
 
-async function exportImage() {
-  if (!state.previewReady) return;
-  const outputPath = await save({
-    defaultPath: `lsob-${state.fileName || "destroyed"}.png`,
-    filters: [{ name: "PNG image", extensions: ["png"] }],
-  });
-  if (!outputPath) return;
   try {
-    await invoke("save_preview", { dataUrl: state.preview, outputPath });
-  } catch (error) {
-    window.alert(`Could not export image: ${String(error)}`);
+    const response = await fetch(editorState.originalPreviewUrl);
+    const bytes = Array.from(new Uint8Array(await response.arrayBuffer()));
+    const effects = editorState.effectStack.map((item) => ({
+      kind: item.effectId,
+      value: Number(Object.values(item.values)[0] ?? 0),
+      enabled: item.enabled,
+    }));
+    const previewUrl = await invoke<string>("preview_image", { bytes, effects });
+    if (request !== previewRequest) return;
+    editorState.previewUrl = previewUrl;
+    if (repaint) {
+      render();
+    } else {
+      const image = app?.querySelector<HTMLImageElement>("[data-image-target]");
+      if (image) image.src = previewUrl;
+    }
+  } catch {
+    if (request !== previewRequest) return;
+    editorState.previewUrl = editorState.originalPreviewUrl;
   }
 }
 
-render();
+function schedulePreview() {
+  if (previewTimer) clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => {
+    previewTimer = undefined;
+    void renderPreview(false);
+  }, 50);
+}
+
+async function setupNativeFileDrop() {
+  try {
+    await getCurrentWindow().onDragDropEvent((event) => {
+      if (event.payload.type !== "drop") return;
+      const imagePath = event.payload.paths.find((path) => /\.(png|jpe?g|gif|webp|bmp|tiff?)$/i.test(path));
+      if (imagePath) loadImagePath(imagePath);
+    });
+  } catch {
+  }
+}
+
+function exportCurrentImage() {
+  if (!editorState.previewUrl) return;
+  const link = document.createElement("a");
+  link.href = editorState.previewUrl;
+  link.download = editorState.fileName || "lsob-export.png";
+  link.click();
+}
+
+void bootstrap();

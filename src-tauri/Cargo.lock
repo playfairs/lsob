@@ -2197,6 +2197,7 @@ dependencies = [
  "image",
  "lsob 0.1.0",
  "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
